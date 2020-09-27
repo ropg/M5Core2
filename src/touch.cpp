@@ -620,7 +620,7 @@ void touch::doEvents() {
 			TouchEvent e = fireEvent(i, TE_RELEASE, fi.startPoint, prev, millis() - fi.startTime, fi.button, nullptr);
 			if (!doGestures(e)) {
 				if (e.duration < MAX_TAP) {
-					if (fi.tapPoint.valid()) {
+					if (fi.tapPoint.valid() && (fi.button->name == buttonFor(fi.tapPoint)->name)) {
 						// there was a stored tap, so it's a doubletap now
 						fireEvent(i, TE_DBLTAP, fi.startPoint, invalid, 0, fi.button, nullptr);
 						fi.tapPoint.set();
