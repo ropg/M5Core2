@@ -40,8 +40,8 @@ About the touch sensor in the M5Stack Core2
 
 Describing points and areas
 
-	TouchPoint and TouchArea allow you to create variables of the types
-	TouchPoint and TouchZone to hold a point or an area on the screen.
+	TouchPoint and TouchArea allow you to create variables to hold a point
+	or an area on the screen.
 
 	TouchPoint
 		Holds a point on the screen. Has members x and y that hold the
@@ -287,16 +287,16 @@ Events
 			accepting the event as an argument, even when it can
 			completely ignore it.
 			
-	If your event calls functions in e.button or e.gesture, remember that
-	these are pointers. Without going into too much detail, it means it
-	must do so with the -> notation, so to read the button x position, you
-	would say "e.button->x".
+	If your event reads date or calls functions in e.button or e.gesture,
+	remember that these are pointers. Without going into too much detail,
+	it means it must do so with the -> notation, so to read the button x
+	position, you would say "e.button->x". 
 
-	If you registered a function with M5.Touch and do this on an event that
-	has no button attached, your program will crash. So make sure you only
-	get details about buttons if you know your event has a button pointer.
-	You can either test that with "if (e.button) ..." or make sure with
-	TE_BTNONLY.
+	IMPORTANT: If you registered a function with M5.Touch and do this on an
+	event that has no button attached, your program will crash. So make
+	sure you only get details about buttons if you know your event has a
+	button pointer. You can either test that with "if (e.button) ..." or
+	make sure with TE_BTNONLY.
 
 	Please have a look at the example sketch (see below) to understand how
 	this all works and run the sketch to see all the events printed to the
@@ -334,6 +334,8 @@ Example
 
 #include <Arduino.h>
 #include <Wire.h>
+#include "M5Display.h"
+#include <Free_Fonts.h>
 
 #define CST_DEVICE_ADDR		0x38
 #define CST_INT 			39
@@ -347,7 +349,29 @@ Example
 #define GESTURE_MAXTIME		500
 #define GESTURE_MINDIST		75
 
-class TouchZone;
+#define NUM_EVENTS			8
+#define TE_TOUCH			0x0001
+#define TE_RELEASE			0x0002
+#define TE_MOVE  			0x0004
+#define TE_GESTURE			0x0008
+#define TE_TAP				0x0010
+#define TE_DBLTAP			0x0020
+#define TE_DRAGGED			0x0040
+#define TE_PRESSED			0x0080
+
+#define TE_ALL				0x0FFF
+#define TE_BTNONLY			0x1000
+
+#define NODRAW				0x0120	// Special color value: transparent
+
+#define BUTTON_FONT			FSS9
+#define BUTTON_TEXTSIZE		1
+#define BUTTON_DATUM		MC_DATUM
+
+
+class TouchZone;	// Point needs Zone and Zone needs Point
+struct TouchEvent; 	// Button needs Event and Event needs button
+
 
 class TouchPoint {
   public:
@@ -361,6 +385,7 @@ class TouchPoint {
     bool Equals(const TouchPoint& p);
     bool valid();
     uint16_t distanceTo(const TouchPoint& p);
+    void rotate(uint8_t m);
     int16_t x, y;
   private:
     char _text[12];
@@ -370,42 +395,50 @@ class TouchPoint {
 class TouchZone {
   public:
 	TouchZone();
-	TouchZone(uint16_t x_, uint16_t y_, uint16_t w_, uint16_t h_);
+	TouchZone(int16_t x_, int16_t y_, int16_t w_, int16_t h_);
 	bool operator ==(const TouchPoint& p);
-	void set(uint16_t x_, uint16_t y_, uint16_t w_, uint16_t h_);
+	void set(int16_t x_, int16_t y_, int16_t w_, int16_t h_);
     bool contains(const TouchPoint &p);
-    uint16_t x, y, w, h;
+    bool contains(int16_t x, int16_t y);
+    void rotate(uint8_t m);
+    int16_t x, y, w, h;
 };
 
 // For compatibility with older M5Core2 code
 class HotZone : public TouchZone {
   public:
-	HotZone(uint16_t x0_, uint16_t y0_, uint16_t x1_, uint16_t y1_, void (*fun_)() = nullptr);
-	void setZone(uint16_t x0_, uint16_t y0_, uint16_t x1_, uint16_t y1_, void (*fun_)() = nullptr);
+	HotZone(
+	  int16_t x0_, int16_t y0_, int16_t x1_, int16_t y1_,
+	  void (*fun_)() = nullptr
+	);
+	void setZone(
+	  int16_t x0_, int16_t y0_, int16_t x1_, int16_t y1_,
+	  void (*fun_)() = nullptr
+	);
 	bool inHotZone(TouchPoint &p);
 	bool inHotZoneDoFun(TouchPoint &p);
     void (*fun)();
 };
 #define HotZone_t HotZone
- 
-#define NUM_EVENTS	8
-#define TE_TOUCH	0x0001
-#define TE_RELEASE	0x0002
-#define TE_MOVE     0x0004
-#define TE_GESTURE	0x0008
-#define TE_TAP		0x0010
-#define TE_DBLTAP	0x0020
-#define TE_DRAGGED	0x0040
-#define TE_PRESSED	0x0080
 
-#define TE_ALL		0x0FFF
-#define TE_BTNONLY	0x1000
-
-struct TouchEvent;
+struct ButtonColors {
+	uint16_t bg;
+	uint16_t text;
+	uint16_t outline;
+};
 
 class TouchButton : public TouchZone {
   public:
-	TouchButton(uint16_t x_, uint16_t y_, uint16_t w_, uint16_t h_, const char* name_ = "");
+	TouchButton(
+	  int16_t x_, int16_t y_, int16_t w_, int16_t h_,
+	  const char* name_ = "",
+	  ButtonColors off_ = {NODRAW, NODRAW, NODRAW},
+	  ButtonColors on_ = {NODRAW, NODRAW, NODRAW},
+	  uint8_t datum_ = BUTTON_DATUM,
+	  int16_t dx_ = 0,
+	  int16_t dy_ = 0,
+	  uint8_t r_ = 0xFF
+	);
 	~TouchButton();
 	bool setState(bool);
 	bool isPressed();
@@ -417,28 +450,75 @@ class TouchButton : public TouchZone {
 	bool releasedFor(uint32_t ms);
 	bool wasReleasefor(uint32_t ms);
 	void addHandler(void (*fn)(TouchEvent&), uint16_t eventMask = TE_ALL);
+	void delHandlers(void (*fn)(TouchEvent&) = nullptr);
 	uint32_t lastChange();
 	uint8_t finger;
-	bool changed;				//state changed since last read
+	bool changed;
 	char name[16];
   private:
-	bool _state;				//current TouchButton state
-	uint32_t _time;				//time of current state (all times are in ms)
-	uint32_t _lastChange;		//time of last state change
-	uint32_t _lastLongPress;	//time of last state change
-	uint32_t _pressTime;		//press time
-	uint32_t _hold_time;		//hold time call wasreleasefor
+	bool _state;
+	uint32_t _time, _lastChange, _lastLongPress, _pressTime, _hold_time;
+	
+// visual stuff
+  public:
+	static void drawFunction(
+	  TouchZone* z,
+	  ButtonColors bc,
+	  char* lbl,
+	  uint8_t textFont,
+	  const GFXfont* freeFont,
+	  uint8_t textSize,
+	  uint8_t datum,
+	  int16_t dx,
+	  int16_t dy,
+	  uint8_t r,
+	  bool compat
+	);
+	void draw(ButtonColors bc);
+	void draw();
+	void setLabel(const char* label_);
+	void setFont(const GFXfont* freeFont_);
+	void setFont(uint8_t textFont_ = 0);
+	void setTextSize(uint8_t textSize_ = 0);
+	ButtonColors off, on;
+	TouchZone* drawZone;
+	uint8_t textSize, datum, r;
+	int16_t dx, dy;
+	void (*drawFn)(
+	  TouchZone* z,
+	  ButtonColors bc,
+	  char* lbl,
+	  uint8_t textFont,
+	  const GFXfont* freeFont,
+	  uint8_t textSize,
+	  uint8_t datum,
+	  int16_t dx,
+	  int16_t dy,
+	  uint8_t r,
+	  bool compat
+	);
+	char label[51];
+	bool compat; // For TFT_eSPI_Button emulation		
+  private:
+	uint8_t _textFont;
+	const GFXfont* _freeFont;
+	uint8_t _textSize;
 };
 
 class Gesture {
   public:
-  	Gesture(TouchZone fromZone_, TouchZone toZone_, const char* name_ = "",
+  	Gesture(
+  	  TouchZone fromZone_,
+  	  TouchZone toZone_,
+  	  const char* name_ = "",
   	  uint16_t maxTime_ = GESTURE_MAXTIME,
-  	  uint16_t minDistance_ = GESTURE_MINDIST);
+  	  uint16_t minDistance_ = GESTURE_MINDIST
+  	);
   	~Gesture();
   	bool test(TouchEvent& e);
   	bool wasDetected();
   	void addHandler(void (*fn)(TouchEvent&), uint16_t eventMask = TE_ALL);
+  	void delHandlers(void (*fn)(TouchEvent&) = nullptr);
   	TouchZone fromZone, toZone;
   	uint16_t maxTime, minDistance;
   	char name[16];
@@ -448,11 +528,33 @@ class Gesture {
 struct TouchEvent {
 	uint8_t finger;
 	uint16_t type;
-	TouchPoint from;
-	TouchPoint to;
+	TouchPoint from, to;
 	uint16_t duration;
 	TouchButton* button;
 	Gesture* gesture;
+	const char* typeName() {
+		const char *unknown = "TE_UNKNOWN";
+		const char *eventNames[NUM_EVENTS] = {
+			"TE_TOUCH", 
+			"TE_RELEASE",
+			"TE_MOVE",
+			"TE_GESTURE",
+			"TE_TAP",
+			"TE_DBLTAP",
+			"TE_DRAGGED",
+			"TE_PRESSED"
+		};
+		for (uint8_t i = 0; i < NUM_EVENTS; i++) {
+			if ((type >> i) & 1) return eventNames[i];
+		}
+		return unknown;
+	};
+	const char* objName() {
+		const char *empty = "";
+		if (button) return button->name;
+		if (gesture) return gesture->name;
+		return empty;
+	};
 };
 
 struct EventHandler {
@@ -463,12 +565,8 @@ struct EventHandler {
 };
 
 struct Finger {
-	TouchPoint current;
-	TouchPoint previous;
-	uint32_t startTime;
-	TouchPoint startPoint;
-	TouchPoint tapPoint;
-	uint32_t tapTime;
+	TouchPoint current, previous, startPoint, tapPoint;
+	uint32_t startTime, tapTime;
 	TouchButton* button;
 };
 
@@ -476,15 +574,25 @@ class touch {
   public:
     touch();
     ~touch();
-    static touch* instance;
     void begin();
     bool ispressed();
 	uint8_t ft6336(uint8_t reg, int16_t value = -1);
 	uint8_t ft6336(uint8_t reg, uint8_t size, uint8_t* data);
 	uint8_t interval(int16_t ivl);
     void read();
-    void addHandler(void (*fn)(TouchEvent&), uint16_t eventMask = TE_ALL,
-      TouchButton* button = nullptr, Gesture* gesture = nullptr);
+    void setRotation(uint8_t m);
+    void addHandler(
+      void (*fn)(TouchEvent&),
+      uint16_t eventMask = TE_ALL,
+      TouchButton* button = nullptr,
+      Gesture* gesture = nullptr
+    );
+    void delHandlers(
+      void (*fn)(TouchEvent&),
+      TouchButton* button,
+      Gesture* gesture
+    );
+    // Deprecated: use e.typeName() and e.objName()
     const char* eventTypeName(TouchEvent& e);
     const char* eventObjName(TouchEvent& e);
     uint8_t points;
@@ -492,15 +600,37 @@ class touch {
     TouchPoint point[2];
     TouchPoint getPressPoint();
     TouchButton* buttonFor(TouchPoint& p);
+    void drawButtons();
+	void (*drawFn)(
+	  TouchZone* z,
+	  ButtonColors bc,
+	  char* lbl,
+	  uint8_t textFont,
+	  const GFXfont* freeFont,
+	  uint8_t textSize,
+	  uint8_t datum,
+	  int16_t dx,
+	  int16_t dy,
+	  uint8_t r,
+	  bool compat
+	);
+	void setFont(const GFXfont* freeFont_);
+	void setFont(uint8_t textFont_);
+	void setTextSize(uint8_t textSize_);
   private:
 	friend class TouchButton;
 	friend class Gesture;
-    void delHandlers(TouchButton* button, Gesture* gesture);
     void doEvents();
     bool doGestures(TouchEvent& e);
-    TouchEvent fireEvent(uint8_t finger, uint16_t type, TouchPoint& from,
-      TouchPoint& to, uint16_t duration, TouchButton* button,
-      Gesture* gesture);
+    TouchEvent fireEvent(
+      uint8_t finger,
+      uint16_t type,
+      TouchPoint& from,
+      TouchPoint& to,
+      uint16_t duration,
+      TouchButton* button,
+      Gesture* gesture
+    );
     void registerButton(TouchButton* button);
     void deregisterButton(TouchButton* button);
     void registerGesture(Gesture* gesture);
@@ -515,6 +645,39 @@ class touch {
 	std::vector<EventHandler> _eventHandlers;
 	std::vector<Gesture*> _gestures;
 	std::vector<TouchButton*> _buttons;
+	uint8_t _textFont;
+	const GFXfont* _freeFont;
+	uint8_t _textSize;
 };
+
+
+// TFT_eSPI_Button compatibility mode
+
+class TFT_eSPI_Button : public TouchButton {
+  public:
+	TFT_eSPI_Button();
+	void initButton(
+	  TFT_eSPI *gfx, 
+	  int16_t x, int16_t y, uint16_t w, uint16_t h, 
+	  uint16_t outline, uint16_t fill, uint16_t textcolor,
+	  char *label,
+	  uint8_t textsize_
+	);
+	void initButtonUL(
+	  TFT_eSPI *gfx,
+	  int16_t x_, int16_t y_, uint16_t w_, uint16_t h_, 
+	  uint16_t outline, uint16_t fill, uint16_t textcolor, 
+	  char *label,
+	  uint8_t textsize_
+	);
+	void     setLabelDatum(int16_t x_delta, int16_t y_delta, uint8_t datum = MC_DATUM);
+	void     drawButton(bool inverted = false, String long_name = "");
+	bool     contains(int16_t x, int16_t y);
+	void     press(bool p);
+	bool     isPressed();
+	bool     justPressed();
+	bool     justReleased();
+};
+
 
 #endif
