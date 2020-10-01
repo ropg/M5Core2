@@ -134,12 +134,12 @@ class Button : public Zone {
 	Zone* drawZone;
 	uint8_t textSize, datum, r;
 	int16_t dx, dy;
-	void (*drawFn)(Button* b, ButtonColors bc);
+	void (*drawFn)(Button* b, ButtonColors bc) = nullptr;
 	char label[51];
 	bool compat; // For TFT_eSPI_Button emulation		
   private:
 	uint8_t _textFont;
-	const GFXfont* _freeFont;
+	const GFXfont* _freeFont = nullptr;
 	uint8_t _textSize;
 };
 
@@ -154,9 +154,9 @@ class M5Buttons {
 	void setFont(const GFXfont* freeFont_);
 	void setFont(uint8_t textFont_);
 	void setTextSize(uint8_t textSize_);
-	void (*drawFn)(Button* button, ButtonColors bc);
+	void (*drawFn)(Button* button, ButtonColors bc) = nullptr;
 	uint8_t textFont;
-	const GFXfont* freeFont;
+	const GFXfont* freeFont = nullptr;
 	uint8_t textSize;
 };
 
