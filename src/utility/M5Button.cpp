@@ -79,6 +79,7 @@ void Button::init() {
   longPressTime = LONGPRESS_TIME;
   repeatDelay = REPEAT_DELAY;
   repeatInterval = REPEAT_INTERVAL;
+  userData = 0;
   strncpy(_label, _name, 16);
   if (_pin != 0xFF) pinMode(_pin, INPUT_PULLUP);
   instances.push_back(this);
@@ -275,7 +276,7 @@ void Button::erase(uint16_t color /* = BLACK */) {
 }
 
 void Button::draw(ButtonColors bc) {
-  _hidden = false;
+  if (_hidden) return;
   // use locally set draw function if aplicable, global one otherwise
   if (drawFn) {
     drawFn(*this, bc);
@@ -287,6 +288,11 @@ void Button::draw(ButtonColors bc) {
 void Button::hide(uint16_t color /* = NODRAW */) {
   _hidden = true;
   if (color != NODRAW) erase(color);
+}
+
+void Button::show() {
+  _hidden = false;
+  draw();
 }
 
 char* Button::label() { return _label; }

@@ -867,6 +867,7 @@ class Button : public Zone {
   void draw(ButtonColors bc);
   void draw();
   void hide(uint16_t color = NODRAW);
+  void show();
   void erase(uint16_t color = BLACK);
   void setLabel(const char* label_);
   void setFont(const GFXfont* freeFont_);

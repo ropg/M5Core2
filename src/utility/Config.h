@@ -3,6 +3,7 @@
 
   #define TFT     M5Display::instance
   #define BUTTONS	M5Buttons::instance
+  #define AXP     AXP192::instance
 
   // Screen
   #define TFT_LED_PIN 32

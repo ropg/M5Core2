@@ -1,0 +1,103 @@
+#include <M5Core2.h>
+
+Synth row_gen;
+Synth col_gen;
+
+const uint16_t rowTones[4] = { 697,  770,  852,  941};
+const uint16_t colTones[4] = {1209, 1336, 1477, 1633};
+const char* keyLabels[16] = {"1", "2", "3", "A",
+                             "4", "5", "6", "B",
+                             "7", "8", "9", "C",
+                             "*", "0", "#", "D"};
+ButtonColors offColors = {BLUE, WHITE, WHITE};
+ButtonColors onColors  = {WHITE, BLACK, NODRAW};
+Button key[16] = Button(0,0,0,0);
+
+uint32_t rotationLastChecked = 0;
+uint8_t rotation = 0;
+uint8_t columns = 3;
+
+void setup() {
+	M5.begin();
+  row_gen.gain = col_gen.gain = 0.3;
+  row_gen.decay = col_gen.decay = 50;   // min tone length
+  doButtons();
+  M5.Buttons.addHandler(btnPressed , E_TOUCH  );
+  M5.Buttons.addHandler(btnReleased, E_RELEASE);
+  M5.IMU.Init();
+}
+
+
+void loop() {  
+	M5.update();
+  checkRotation();
+}
+
+void doButtons() {
+  M5.Buttons.setFont(FSSB18);
+  uint8_t margin = 6;
+  uint16_t scr_w = M5.Lcd.width();
+  uint16_t scr_h = M5.Lcd.height();
+  uint8_t btn_w = (scr_w / columns) - margin;
+  uint8_t btn_h = (scr_h / 4) - margin;
+
+  // Show or hide the last column
+  for (uint8_t i = 3; i < 16; i += 4) {
+     if (columns == 3) key[i].hide(); else key[i].show();
+  }
+
+  // Set up all the keys
+  for (uint8_t r = 0; r < 4; r++) {
+    for (uint8_t c = 0; c < columns; c++) {
+      uint8_t i = (r * 4) + c;
+      key[i].userData = i + 1;
+      key[i].x = c * (scr_w / columns) + (margin / 2);
+      key[i].y = r * (scr_h / 4) + (margin / 2);
+      key[i].w = btn_w;
+      key[i].h = btn_h;
+      key[i].setLabel(keyLabels[i]);
+      key[i].off = offColors;
+      key[i].on  =  onColors;
+    }
+  }
+
+  // Cosmetics: "*" char in font too small and too high
+  key[12].setFont(FSSB24);
+  key[12].dy = 8;
+  
+  M5.Buttons.draw();
+}
+
+void btnPressed(Event& e) {
+  Button& btn = *e.button;
+  if (!btn.userData) return;
+  row_gen.freq = rowTones[(btn.userData - 1) / 4];
+  col_gen.freq = colTones[(btn.userData - 1) % 4];
+  row_gen.start();
+  col_gen.start();
+}
+
+void btnReleased(Event& e) {
+  row_gen.stop();
+  col_gen.stop();
+}
+
+void checkRotation() {
+  if (millis() - rotationLastChecked < 1000) return;
+  rotationLastChecked = millis();
+  const float threshold = 0.85;
+  float ax, ay, az;
+  M5.IMU.getAccelData(&ax, &ay, &az);
+  int8_t newRotation = -1;
+  if (ay >  threshold) newRotation = 1;
+  if (ay < -threshold) newRotation = 3;
+  if (ax >  threshold) newRotation = 2;
+  if (ax < -threshold) newRotation = 0;
+  if (newRotation != -1 && rotation != newRotation) {
+    rotation = newRotation;
+    columns = rotation % 2 ? 4 : 3;
+    M5.Lcd.clearDisplay();
+    M5.Lcd.setRotation(rotation);
+    doButtons();
+  }
+}
