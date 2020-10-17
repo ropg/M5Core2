@@ -4,10 +4,22 @@
 
 /* static */ std::vector<Button*> Button::instances;
 
+Button::Button() : Zone() {
+  _pin = 0xFF;
+  _invert = false;
+  _dbTime = 0;
+  *_name = 0;
+  off = on = {NODRAW, NODRAW, NODRAW};
+  datum = BUTTON_DATUM;
+  dx = dy = 0;
+  r = 0xFF;
+  init();
+}
+
 Button::Button(int16_t x_, int16_t y_, int16_t w_, int16_t h_,
                bool rot1_ /* = false */, const char* name_ /* = "" */,
-               ButtonColors off_ /*= {NODRAW, NODRAW, NODRAW} */,
-               ButtonColors on_ /* = {NODRAW, NODRAW, NODRAW} */,
+               ButtonColors off_ /* = {NODRAW, NODRAW, NODRAW} */,
+               ButtonColors on_  /* = {NODRAW, NODRAW, NODRAW} */,
                uint8_t datum_ /* = BUTTON_DATUM */, int16_t dx_ /* = 0 */,
                int16_t dy_ /* = 0 */, uint8_t r_ /* = 0xFF */
                )
@@ -29,8 +41,8 @@ Button::Button(uint8_t pin_, uint8_t invert_, uint32_t dbTime_,
                String hw_ /* = "hw" */, int16_t x_ /* = 0 */,
                int16_t y_ /* = 0 */, int16_t w_ /* = 0 */, int16_t h_ /* = 0 */,
                bool rot1_ /* = false */, const char* name_ /* = "" */,
-               ButtonColors off_ /*= {NODRAW, NODRAW, NODRAW} */,
-               ButtonColors on_ /* = {NODRAW, NODRAW, NODRAW} */,
+               ButtonColors off_ /* = {NODRAW, NODRAW, NODRAW} */,
+               ButtonColors on_  /* = {NODRAW, NODRAW, NODRAW} */,
                uint8_t datum_ /* = BUTTON_DATUM */, int16_t dx_ /* = 0 */,
                int16_t dy_ /* = 0 */, uint8_t r_ /* = 0xFF */
                )
@@ -276,7 +288,7 @@ void Button::erase(uint16_t color /* = BLACK */) {
 }
 
 void Button::draw(ButtonColors bc) {
-  if (_hidden) return;
+  if (_hidden || !valid()) return;
   // use locally set draw function if aplicable, global one otherwise
   if (drawFn) {
     drawFn(*this, bc);

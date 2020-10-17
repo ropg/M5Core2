@@ -112,8 +112,6 @@ Zone::Zone(int16_t x_ /* = INVALID_VALUE */, int16_t y_ /* = INVALID_VALUE */,
   set(x_, y_, w_, h_, rot1_);
 }
 
-Zone::operator bool() { return !(x == INVALID_VALUE && y == INVALID_VALUE); }
-
 void Zone::set(int16_t x_ /* = INVALID_VALUE */,
                int16_t y_ /* = INVALID_VALUE */,
                int16_t w_ /* = 0 */, int16_t h_ /* = 0 */,
@@ -124,6 +122,8 @@ void Zone::set(int16_t x_ /* = INVALID_VALUE */,
   h = h_;
   rot1 = rot1_;
 }
+
+Zone::operator bool() { return !(x == INVALID_VALUE && y == INVALID_VALUE); }
 
 bool Zone::valid() { return !(x == INVALID_VALUE && y == INVALID_VALUE); }
 

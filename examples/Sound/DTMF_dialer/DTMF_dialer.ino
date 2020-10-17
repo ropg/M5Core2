@@ -5,32 +5,31 @@ Synth col_gen;
 
 const uint16_t rowTones[4] = { 697,  770,  852,  941};
 const uint16_t colTones[4] = {1209, 1336, 1477, 1633};
-const char* keyLabels[16] = {"1", "2", "3", "A",
-                             "4", "5", "6", "B",
-                             "7", "8", "9", "C",
-                             "*", "0", "#", "D"};
+const char* keyLabels[16]  = {"1", "2", "3", "A",
+                              "4", "5", "6", "B",
+                              "7", "8", "9", "C",
+                              "*", "0", "#", "D"};
 ButtonColors offColors = {BLUE, WHITE, WHITE};
 ButtonColors onColors  = {WHITE, BLACK, NODRAW};
-Button key[16] = Button(0,0,0,0);
+Button key[16];
 
 uint32_t rotationLastChecked = 0;
-uint8_t rotation = 0;
-uint8_t columns = 3;
+uint8_t columns = 4;
 
 void setup() {
 	M5.begin();
-  row_gen.gain = col_gen.gain = 0.3;
+  M5.IMU.Init();
+  row_gen.gain  = col_gen.gain   = 0.3;
   row_gen.decay = col_gen.decay = 50;   // min tone length
   doButtons();
   M5.Buttons.addHandler(btnPressed , E_TOUCH  );
   M5.Buttons.addHandler(btnReleased, E_RELEASE);
-  M5.IMU.Init();
 }
 
 
-void loop() {  
+void loop() {
 	M5.update();
-  checkRotation();
+  if (checkRotation(1000)) doButtons();
 }
 
 void doButtons() {
@@ -38,8 +37,8 @@ void doButtons() {
   uint8_t margin = 6;
   uint16_t scr_w = M5.Lcd.width();
   uint16_t scr_h = M5.Lcd.height();
-  uint8_t btn_w = (scr_w / columns) - margin;
-  uint8_t btn_h = (scr_h / 4) - margin;
+  uint8_t  btn_w = (scr_w / columns) - margin;
+  uint8_t  btn_h = (scr_h / 4) - margin;
 
   // Show or hide the last column
   for (uint8_t i = 3; i < 16; i += 4) {
@@ -64,7 +63,7 @@ void doButtons() {
   // Cosmetics: "*" char in font too small and too high
   key[12].setFont(FSSB24);
   key[12].dy = 8;
-  
+
   M5.Buttons.draw();
 }
 
@@ -82,22 +81,21 @@ void btnReleased(Event& e) {
   col_gen.stop();
 }
 
-void checkRotation() {
-  if (millis() - rotationLastChecked < 1000) return;
+bool checkRotation(uint16_t msec) {
+  if (millis() - rotationLastChecked < msec) return false;
   rotationLastChecked = millis();
   const float threshold = 0.85;
   float ax, ay, az;
   M5.IMU.getAccelData(&ax, &ay, &az);
-  int8_t newRotation = -1;
-  if (ay >  threshold) newRotation = 1;
-  if (ay < -threshold) newRotation = 3;
-  if (ax >  threshold) newRotation = 2;
-  if (ax < -threshold) newRotation = 0;
-  if (newRotation != -1 && rotation != newRotation) {
-    rotation = newRotation;
-    columns = rotation % 2 ? 4 : 3;
-    M5.Lcd.clearDisplay();
-    M5.Lcd.setRotation(rotation);
-    doButtons();
-  }
+  uint8_t newRotation;
+  if      (ay >  threshold) newRotation = 1;
+  else if (ay < -threshold) newRotation = 3;
+  else if (ax >  threshold) newRotation = 2;
+  else if (ax < -threshold) newRotation = 0;
+  else return false;
+  if (M5.Lcd.rotation == newRotation) return false;
+  columns = newRotation % 2 ? 4 : 3;
+  M5.Lcd.clearDisplay();
+  M5.Lcd.setRotation(newRotation);
+  return true;
 }

@@ -18,7 +18,7 @@
 
 M5Sound::M5Sound() {
   if (!instance) instance = this;
-  bytes_left = 0;
+  _bytes_left = 0;
 }
 
 void M5Sound::begin() {
@@ -54,31 +54,31 @@ void M5Sound::begin() {
 
 void M5Sound::update() {
   // If last packet is gone, make a new one
-  if (!bytes_left) {
+  if (!_bytes_left) {
     // Ask synths what they have and mix in 32-bit signed mix buffer
-    memset(mixbuf, 0, BUFLEN * 4);   // 32 bits
+    memset(_mixbuf, 0, BUFLEN * 4);   // 32 bits
     for (auto synth : Synth::instances) {
       if (synth->fillSbuf()) {
         for (uint16_t i = 0; i < BUFLEN; i++) {
-          mixbuf[i] += synth->sbuf[i];
+          _mixbuf[i] += synth->_sbuf[i];
         }
       }
     }
     for (uint16_t i = 0; i < BUFLEN; i++) {
-      int32_t m = mixbuf[i];
+      int32_t m = _mixbuf[i];
       // clip to 16-bit signed so we get "real" distortion not noise
       if (m <= -32768) m = -32768;
        else if (m >= 32767) m = 32767;
-      buf[i * 2] = m;
-      buf[(i * 2) + 1] = m;
+      _buf[i * 2] = m;
+      _buf[(i * 2) + 1] = m;
     }
-    bytes_left = BUFLEN * 4;
+    _bytes_left = BUFLEN * 4;
   }
   // Send what can be sent but don't hang around, send rest next time.
   size_t bytes_written = 0;
-  i2s_write(I2S_NUM_0, buf + (BUFLEN * 4) - bytes_left, bytes_left,
+  i2s_write(I2S_NUM_0, _buf + (BUFLEN * 4) - _bytes_left, _bytes_left,
             &bytes_written, 0);
-  bytes_left -= bytes_written;
+  _bytes_left -= bytes_written;
 }
 
 
@@ -139,14 +139,14 @@ bool Synth::fillSbuf() {
   switch (waveform) {
     case SINE:
       for(uint16_t i = 0; i < BUFLEN; i++) {
-        sbuf[i] = sin((phase + (i * steps)) * TWO_PI) * amplitude;
+        _sbuf[i] = sin((phase + (i * steps)) * TWO_PI) * amplitude;
       }
       break;
     case SQUARE:
       for(uint16_t i = 0; i < BUFLEN; i++) {
         float t = phase + (i * steps);
         t -= (int)t;
-        sbuf[i] = (t > 0.5 ? -1 : 1) * amplitude;
+        _sbuf[i] = (t > 0.5 ? -1 : 1) * amplitude;
       }
       break;
     case TRIANGLE:
@@ -156,7 +156,7 @@ bool Synth::fillSbuf() {
         if (t < 0.25) t *= 4;
          else if (t < 0.75) t = 2 - (t * 4);
           else t = -4 + (t * 4);
-        sbuf[i] = t * amplitude;
+        _sbuf[i] = t * amplitude;
       }
       break;
     case SAWTOOTH:
@@ -165,12 +165,12 @@ bool Synth::fillSbuf() {
         t -= (int)t;
         if (t < 0.5) t *= 2;
          else t = -2 + (t * 2);
-        sbuf[i] = t * amplitude;
+        _sbuf[i] = t * amplitude;
       }
       break;
     case NOISE:
       for(uint16_t i = 0; i < BUFLEN; i++) {
-        sbuf[i] = (rand() % (2 * amplitude)) - amplitude;
+        _sbuf[i] = (rand() % (2 * amplitude)) - amplitude;
       }
       break;
   }
