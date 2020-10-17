@@ -298,8 +298,8 @@ void Button::draw(ButtonColors bc) {
 }
 
 void Button::hide(uint16_t color /* = NODRAW */) {
-  _hidden = true;
   if (color != NODRAW) erase(color);
+  _hidden = true;
 }
 
 void Button::show() {

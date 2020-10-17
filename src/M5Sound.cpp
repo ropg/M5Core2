@@ -50,15 +50,40 @@ void M5Sound::begin() {
               I2S_CHANNEL_STEREO);
   // Turn on system speaker
   AXP->SetSpkEnable(true);
+  _silentSince = millis();
 }
+
+void M5Sound::delay(uint16_t msec) {
+  uint32_t start = millis();
+  while (millis() - start < msec) {
+    update();
+    yield();
+  }
+}
+
+void M5Sound::waitForSilence(uint16_t msec /* = 0 */) {
+  while (!silence(msec)) {
+    update();
+    yield();
+  }
+}
+
+bool M5Sound::silence(uint16_t msec /* = 0 */) {
+  if (!_silentSince) return false;
+  if (millis() - _silentSince >= msec) return true;
+  return false;
+}
+
 
 void M5Sound::update() {
   // If last packet is gone, make a new one
   if (!_bytes_left) {
     // Ask synths what they have and mix in 32-bit signed mix buffer
     memset(_mixbuf, 0, BUFLEN * 4);   // 32 bits
+    _silentSince = millis();
     for (auto synth : Synth::instances) {
       if (synth->fillSbuf()) {
+        _silentSince = 0;
         for (uint16_t i = 0; i < BUFLEN; i++) {
           _mixbuf[i] += synth->_sbuf[i];
         }
@@ -74,11 +99,14 @@ void M5Sound::update() {
     }
     _bytes_left = BUFLEN * 4;
   }
-  // Send what can be sent but don't hang around, send rest next time.
-  size_t bytes_written = 0;
-  i2s_write(I2S_NUM_0, _buf + (BUFLEN * 4) - _bytes_left, _bytes_left,
-            &bytes_written, 0);
-  _bytes_left -= bytes_written;
+
+  if (_bytes_left) {
+    // Send what can be sent but don't hang around, send rest next time.
+    size_t bytes_written = 0;
+    i2s_write(I2S_NUM_0, _buf + (BUFLEN * 4) - _bytes_left, _bytes_left,
+              &bytes_written, 0);
+    _bytes_left -= bytes_written;
+  }
 }
 
 
@@ -91,16 +119,20 @@ void M5Sound::update() {
 
 /* static */ std::vector<Synth*> Synth::instances;
 
-Synth::Synth() {
-  freq = 0;
+Synth::Synth(waveform_t waveform_ /* = SINE */, float freq_ /* = 0 */,
+             uint16_t attack_ /* = 10 */, uint16_t decay_ /* = 0 */,
+             float sustain_ /* = 1.0 */, uint16_t release_ /* = 10 */,
+             float gain_ /* = 0.5 */) {
+  waveform = waveform_;
+  freq = freq_;
+  attack = attack_;
+  decay = decay_;
+  sustain = sustain_;
+  release = release_;
+  gain = gain_;
   phase = 0;
-  waveform = SINE;
-  attack = 10;
-  decay = 0;
-  sustain = 1;
-  release = 10;
-  gain = 1;
   instances.push_back(this);
+  startTime = stopTime = 0;
 }
 
 Synth::~Synth() {
@@ -119,7 +151,7 @@ bool Synth::fillSbuf() {
   if (duration < attack) {
     envelope = (float)duration / attack;
   } else if (decay && sustain < 1 && duration < attack + decay) {
-    envelope = (((float)(duration - attack) / decay) * (1 - sustain)) + sustain;
+    envelope = 1 - (((float)(duration - attack) / decay) * (1 - sustain));
   } else {
     envelope = sustain;
   }
@@ -189,6 +221,14 @@ void Synth::stop() {
   // At least attack, decay and release get to play
   stopTime = startTime + attack + decay;
   if (millis() > stopTime) stopTime = millis() + 10;
+}
+
+void Synth::playFor(uint32_t msec) {
+  uint32_t duration = attack + decay + release;
+  if (msec > duration) duration = msec;
+  startTime = millis();
+  stopTime  = millis() + duration;
+  phase = 0;
 }
 
 int16_t Synth::scaleAmplitude(float gain) {

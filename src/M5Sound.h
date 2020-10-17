@@ -8,13 +8,20 @@
 #define I2S_LRC            0
 #define DMA_BUF_COUNT      4
 #define DMA_BUF_LEN      256
-#define SAMPLERATE     32000
+#define SAMPLERATE     24000
 #define BUFLEN            32
 #define TWO_PI             6.283185307179586
 
 
-// Musical notes, 440 Hz tuning
+// defaults
+#define ATTACK            10
+#define DECAY              0
+#define SUSTAIN            1.0
+#define RELEASE           10
+#define GAIN               0.5
 
+
+// Musical notes, 440 Hz tuning
 #define NOTE_C3     130.81
 #define NOTE_Db3    138.59
 #define NOTE_D3     146.83
@@ -81,7 +88,8 @@ class M5Sound {
   void begin();
   void update();
   void delay(uint16_t msec);
-  void waitForSilence(uint16_t msec);
+  void waitForSilence(uint16_t msec = 0);
+  bool silence(uint16_t msec = 0);
  protected:
   uint32_t _silentSince;
   int16_t _buf[BUFLEN * 2];
@@ -92,7 +100,10 @@ class M5Sound {
 class Synth {
  public:
   static std::vector<Synth*> instances;
-  Synth();
+  Synth(waveform_t waveform_ = SINE, float freq_ = 0,
+        uint16_t attack_ = ATTACK, uint16_t decay_ = DECAY,
+        float sustain_ = SUSTAIN, uint16_t release_ = RELEASE,
+        float gain_ = GAIN);
   ~Synth();
   bool fillSbuf();
   void start();
