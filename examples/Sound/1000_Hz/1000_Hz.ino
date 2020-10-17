@@ -2,7 +2,8 @@
 
 Synth a(SINE, 1000);
 
-Button playButton(50, 80, 220, 80, false, "1000 Hz", {YELLOW, BLACK, NODRAW}, {BLACK, YELLOW, NODRAW});
+Button playButton(50, 80, 220, 80, false, "1000 Hz",
+                  {YELLOW, BLACK, NODRAW}, {BLACK, YELLOW, YELLOW} );
 
 void setup() {
 	M5.begin();

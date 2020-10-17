@@ -120,9 +120,9 @@ void M5Sound::update() {
 /* static */ std::vector<Synth*> Synth::instances;
 
 Synth::Synth(waveform_t waveform_ /* = SINE */, float freq_ /* = 0 */,
-             uint16_t attack_ /* = 10 */, uint16_t decay_ /* = 0 */,
-             float sustain_ /* = 1.0 */, uint16_t release_ /* = 10 */,
-             float gain_ /* = 0.5 */) {
+             uint16_t attack_ /* = ATTACK */, uint16_t decay_ /* = DECAY */,
+             float sustain_ /* = SUSTAIN */, uint16_t release_ /* = RELEASE */,
+             float gain_ /* = GAIN */) {
   waveform = waveform_;
   freq = freq_;
   attack = attack_;
@@ -146,10 +146,12 @@ Synth::~Synth() {
 
 bool Synth::fillSbuf() {
   if (!freq || !startTime) return false;
-  // Envelope calculation
+
+  // Envelope
   uint32_t duration = millis() - startTime;
   if (duration < attack) {
-    envelope = (float)duration / attack;
+    envelope = _startEnvelope +
+               (((float)duration / attack) * (1 - _startEnvelope));
   } else if (decay && sustain < 1 && duration < attack + decay) {
     envelope = 1 - (((float)(duration - attack) / decay) * (1 - sustain));
   } else {
@@ -162,10 +164,11 @@ bool Synth::fillSbuf() {
     } else {
       startTime = stopTime = 0;
       envelope = 0;
+      phase = 0;
     }
   }
 
-  // Make some waves
+  // Waveform
   uint16_t amplitude = scaleAmplitude(gain * envelope);
   float steps = ((float)freq / SAMPLERATE);
   switch (waveform) {
@@ -213,8 +216,8 @@ bool Synth::fillSbuf() {
 
 void Synth::start() {
   startTime = millis();
+  _startEnvelope = envelope;
   stopTime = 0;
-  phase = 0;
 }
 
 void Synth::stop() {
@@ -228,7 +231,6 @@ void Synth::playFor(uint32_t msec) {
   if (msec > duration) duration = msec;
   startTime = millis();
   stopTime  = millis() + duration;
-  phase = 0;
 }
 
 int16_t Synth::scaleAmplitude(float gain) {

@@ -52,7 +52,7 @@
 #define NOTE_Eb5    622.25
 #define NOTE_E5     659.25
 #define NOTE_F5     698.46
-#define NOTE_Gb     739.99
+#define NOTE_Gb5    739.99
 #define NOTE_G5     783.99
 #define NOTE_Ab5    830.61
 #define NOTE_A5     880
@@ -116,6 +116,7 @@ class Synth {
  protected:
   friend class M5Sound;
   inline int16_t scaleAmplitude(float gain);
+  float _startEnvelope;
   int16_t _sbuf[BUFLEN];
 };
 

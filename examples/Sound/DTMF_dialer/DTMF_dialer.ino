@@ -18,6 +18,7 @@ uint8_t columns = 4;
 
 void setup() {
 	M5.begin();
+  M5.Buttons.pianoMode = true;
   M5.IMU.Init();
   row_gen.gain  = col_gen.gain   = 0.3;
   row_gen.decay = col_gen.decay = 50;   // min tone length
@@ -70,6 +71,7 @@ void doButtons() {
 void btnPressed(Event& e) {
   Button& btn = *e.button;
   if (!btn.userData) return;
+  M5.Sound.waitForSilence();
   row_gen.freq = rowTones[(btn.userData - 1) / 4];
   col_gen.freq = colTones[(btn.userData - 1) % 4];
   row_gen.start();

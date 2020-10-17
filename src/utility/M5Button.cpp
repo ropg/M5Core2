@@ -445,7 +445,7 @@ void M5Buttons::draw() {
 void M5Buttons::update() {
 #ifdef _M5TOUCH_H_
   for (auto gesture : Gesture::instances) gesture->_detected = false;
-  BUTTONS->event = Event();
+  event = Event();
   if (TOUCH->wasRead || _leftovers) {
     _finger[TOUCH->point0finger].current = TOUCH->point[0];
     _finger[1 - TOUCH->point0finger].current = TOUCH->point[1];
@@ -457,6 +457,17 @@ void M5Buttons::update() {
       Point prev = fi.previous;
       fi.previous = fi.current;
       if (curr == prev) continue;
+      if (prev && curr) {
+        // Finger moved
+        if (fi.button) {
+          if (pianoMode && fi.button != which(curr)) {
+            fi.current = fi.previous = Point();
+          } else {
+            fi.button->fingerMove(curr, i);
+            return;
+          }
+        }
+      }
       if (!prev && curr) {
         // A new touch happened
         fi.startTime = millis();
@@ -469,22 +480,18 @@ void M5Buttons::update() {
       } else if (prev && !curr) {
         // Finger removed
         uint16_t duration = millis() - fi.startTime;
-        for (auto gesture : Gesture::instances) {
-          if (gesture->test(fi.startPoint, prev, duration)) {
-            BUTTONS->fireEvent(i, E_GESTURE, fi.startPoint, prev, duration,
-                               nullptr, gesture);
-            if (fi.button) fi.button->cancel();
-            break;
+        if (!pianoMode) {
+          for (auto gesture : Gesture::instances) {
+            if (gesture->test(fi.startPoint, prev, duration)) {
+              fireEvent(i, E_GESTURE, fi.startPoint, prev, duration,
+                        nullptr, gesture);
+              if (fi.button) fi.button->cancel();
+              break;
+            }
           }
         }
         if (fi.button) {
           fi.button->fingerUp(i);
-          return;
-        }
-      } else {
-        // Finger moved
-        if (fi.button) {
-          fi.button->fingerMove(curr, i);
           return;
         }
       }

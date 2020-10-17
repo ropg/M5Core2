@@ -948,6 +948,7 @@ class M5Buttons {
                   Button* button = nullptr, Gesture* gesture = nullptr);
   void delHandlers(void (*fn)(Event&), Button* button, Gesture* gesture);
   Event event;
+  bool pianoMode;
 
  protected:
   std::vector<EventHandler> _eventHandlers;
