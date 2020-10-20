@@ -289,7 +289,7 @@ void Button::erase(uint16_t color /* = BLACK */) {
 }
 
 void Button::draw(ButtonColors bc) {
-  _hidden = false;
+  if (_hidden) return;
   // use locally set draw function if aplicable, global one otherwise
   if (drawFn) {
     drawFn(*this, bc);
