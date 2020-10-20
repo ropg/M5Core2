@@ -1,7 +1,10 @@
 #include "AXP192.h"
 
+/* static */ AXP192* AXP192::instance;
+
 AXP192::AXP192()
 {
+  if (!instance) instance = this;
 }
 
 void AXP192::begin(void)

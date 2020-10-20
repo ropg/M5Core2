@@ -42,8 +42,8 @@ void M5Core2::begin(bool LCDEnable, bool SDEnable, bool SerialEnable, bool I2CEn
     SD.begin(TFCARD_CS_PIN, SPI, 40000000);
   }
 
-  // TONE
-  // Speaker.begin();
+  // Sound
+  Sound.begin();
 
   if (SerialEnable == true) {
     Serial.println("OK");
@@ -55,6 +55,7 @@ void M5Core2::begin(bool LCDEnable, bool SDEnable, bool SerialEnable, bool I2CEn
 void M5Core2::update() {
   Touch.update();
   Buttons.update();
+  Sound.update();
   yield();
 }
 

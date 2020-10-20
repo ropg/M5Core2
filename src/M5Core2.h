@@ -80,6 +80,7 @@
     #include "utility/CommUtil.h"
     #include "utility/MPU6886.h"
     #include "AXP192.h"
+    #include "M5Sound.h"
     #include "RTC.h"
 
 
@@ -115,6 +116,9 @@
         // I2C
         CommUtil I2C;
 
+        // Sound
+        M5Sound Sound;
+
         RTC  Rtc;
 
         /**
@@ -136,5 +140,3 @@
     #error “This library only supports boards with ESP32 processor.”
   #endif
 #endif
-
-
