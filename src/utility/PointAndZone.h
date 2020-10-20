@@ -120,9 +120,10 @@
   To use this library on other devices, simply replace these two lines
 
     #include <M5Display.h>        // so that we can get the rotation
-    #include "utility/Config.h"   // Defines 'TFT', a pointer to the display
+    #include "utility/Config.h"   // Defines 'M5DISPLAY', a pointer to the
+                                  // display
 
-  by whatever you need to do to make the symbol 'TFT' be a pointer to a
+  by whatever you need to do to make the symbol 'M5DISPLAY' be a pointer to a
   TFT_eSPI-derived display device that has a 'rotation' variable. If you
   don't need rotation just delete the lines: the direction functions and the
   'contains' function will now simply ignore their 'rot1' parameters.
@@ -134,7 +135,7 @@
 
 #include <Arduino.h>
 #include <M5Display.h>        // so that we can get the rotation
-#include "utility/Config.h"   // Defines 'TFT', a pointer to the display
+#include "utility/Config.h"   // Defines 'M5DISPLAY', a pointer to the display
 
 #define INVALID_VALUE -32768
 #define PLUSMINUS 45  // default value for isDirectionTo

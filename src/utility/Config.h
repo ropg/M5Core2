@@ -1,7 +1,7 @@
 #ifndef _CONFIG_H_
   #define _CONFIG_H_
 
-  #define TFT     M5Display::instance
+  #define M5DISPLAY     M5Display::instance
   #define BUTTONS	M5Buttons::instance
 
   // Screen

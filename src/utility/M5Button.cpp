@@ -4,6 +4,18 @@
 
 /* static */ std::vector<Button*> Button::instances;
 
+Button::Button() : Zone() {
+  _pin = 0xFF;
+  _invert = false;
+  _dbTime = 0;
+  *_name = 0;
+  off = on = {NODRAW, NODRAW, NODRAW};
+  datum = BUTTON_DATUM;
+  dx = dy = 0;
+  r = 0xFF;
+  init();
+}
+
 Button::Button(int16_t x_, int16_t y_, int16_t w_, int16_t h_,
                bool rot1_ /* = false */, const char* name_ /* = "" */,
                ButtonColors off_ /*= {NODRAW, NODRAW, NODRAW} */,
@@ -82,7 +94,7 @@ void Button::init() {
   strncpy(_label, _name, 16);
   if (_pin != 0xFF) pinMode(_pin, INPUT_PULLUP);
   instances.push_back(this);
-  draw();
+  // draw();
 }
 
 int16_t Button::instanceIndex() {
@@ -219,6 +231,8 @@ void Button::cancel() {
 
 char* Button::getName() { return _name; }
 
+void Button::setName(const char* name_) { strncpy(_name, name_, 15); }
+
 bool Button::isPressed() { return _state; }
 
 bool Button::isReleased() { return !_state; }
@@ -286,10 +300,13 @@ void Button::draw(ButtonColors bc) {
 
 void Button::hide(uint16_t color /* = NODRAW */) {
   _hidden = true;
-  if (color != NODRAW) erase(color);
 }
 
-char* Button::label() { return _label; }
+void Button::show() {
+  _hidden = false;
+}
+
+char* Button::getLabel() { return _label; }
 
 void Button::setLabel(const char* label_) { strncpy(_label, label_, 50); }
 
@@ -313,31 +330,35 @@ void Button::setTextSize(uint8_t textSize_ /* = 0 */) { _textSize = textSize_; }
 /* static */ void M5Buttons::drawFunction(Button& b, ButtonColors bc) {
   if (bc.bg == NODRAW && bc.outline == NODRAW && bc.text == NODRAW) return;
   Zone z = (b.drawZone) ? b.drawZone : b;
-  if (z.rot1) z.rotate(TFT->rotation);
+  if (z.rot1) z.rotate(M5DISPLAY->rotation);
+
+  TFT_eSPI* disp = BUTTONS->display;
+  int16_t zx = z.x + BUTTONS->dx;
+  int16_t zy = z.y + BUTTONS->dy;
 
   uint8_t r = (b.r == 0xFF) ? min(z.w, z.h) / 4 : b.r;
 
   if (bc.bg != NODRAW) {
     if (r >= 2) {
-      TFT->fillRoundRect(z.x, z.y, z.w, z.h, r, bc.bg);
+      disp->fillRoundRect(zx, zy, z.w, z.h, r, bc.bg);
     } else {
-      TFT->fillRect(z.x, z.y, z.w, z.h, bc.bg);
+      disp->fillRect(zx, zy, z.w, z.h, bc.bg);
     }
   }
 
   if (bc.outline != NODRAW) {
     if (r >= 2) {
-      TFT->drawRoundRect(z.x, z.y, z.w, z.h, r, bc.outline);
+      disp->drawRoundRect(zx, zy, z.w, z.h, r, bc.outline);
     } else {
-      TFT->drawRect(z.x, z.y, z.w, z.h, bc.outline);
+      disp->drawRect(zx, zy, z.w, z.h, bc.outline);
     }
   }
 
   if (bc.text != NODRAW && bc.text != bc.bg && strlen(b._label)) {
     // figure out where to put the text
     uint16_t tx, ty;
-    tx = z.x + (z.w / 2);
-    ty = z.y + (z.h / 2);
+    tx = zx + (z.w / 2);
+    ty = zy + (z.h / 2);
 
     if (!b._compat) {
       uint8_t margin = max(r / 2, 6);
@@ -345,66 +366,62 @@ void Button::setTextSize(uint8_t textSize_ /* = 0 */) { _textSize = textSize_; }
         case TL_DATUM:
         case ML_DATUM:
         case BL_DATUM:
-          tx = z.x + margin;
+          tx = zx + margin;
           break;
         case TR_DATUM:
         case MR_DATUM:
         case BR_DATUM:
-          tx = z.x + z.w - margin;
+          tx = zx + z.w - margin;
           break;
       }
       switch (b.datum) {
         case TL_DATUM:
         case TC_DATUM:
         case TR_DATUM:
-          ty = z.y + margin;
+          ty = zy + margin;
           break;
         case BL_DATUM:
         case BC_DATUM:
         case BR_DATUM:
-          ty = z.y + z.h - margin;
+          ty = zy + z.h - margin;
           break;
       }
     }
 
     // Save state
-    uint8_t tempdatum = TFT->getTextDatum();
-    uint16_t tempPadding = TFT->padX;
-    if (!b._compat) TFT->pushState();
+    if (disp == M5DISPLAY) BUTTONS->saveDisplayState();
 
     // Actual drawing of text
-    TFT->setTextColor(bc.text);
+    disp->setTextColor(bc.text);
     if (b._textSize)
-      TFT->setTextSize(b._textSize);
+      disp->setTextSize(b._textSize);
     else
-      TFT->setTextSize(BUTTONS->_textSize);
+      disp->setTextSize(BUTTONS->_textSize);
     if (b._textFont) {
       if (b._freeFont)
-        TFT->setFreeFont(b._freeFont);
+        disp->setFreeFont(b._freeFont);
       else
-        TFT->setTextFont(b._textFont);
+        disp->setTextFont(b._textFont);
     } else {
       if (BUTTONS->_freeFont)
-        TFT->setFreeFont(BUTTONS->_freeFont);
+        disp->setFreeFont(BUTTONS->_freeFont);
       else
-        TFT->setTextFont(BUTTONS->_textFont);
+        disp->setTextFont(BUTTONS->_textFont);
     }
-    TFT->setTextDatum(b.datum);
-    TFT->setTextPadding(0);
-    TFT->drawString(b._label, tx + b.dx, ty + b.dy);
+    disp->setTextDatum(b.datum);
+    disp->setTextPadding(0);
+    disp->drawString(b._label, tx + b.dx, ty + b.dy);
+
     // Set state back
-    if (!b._compat) {
-      TFT->popState();
-    } else {
-      TFT->setTextDatum(tempdatum);
-      TFT->setTextPadding(tempPadding);
-    }
+    if (disp == M5DISPLAY) BUTTONS->restoreDisplayState();
   }
 }
 
 M5Buttons::M5Buttons() {
   if (!instance) instance = this;
   drawFn = drawFunction;
+  display = M5DISPLAY;
+  dx = dy = 0;
   _freeFont = BUTTON_FREEFONT;
   _textFont = BUTTON_TEXTFONT;
   _textSize = BUTTON_TEXTSIZE;
@@ -418,6 +435,30 @@ Button* M5Buttons::which(Point& p) {
     if (!i || (b->_pin == 0xFF && !b->_hidden && b->contains(p))) return b;
   }
   return nullptr;
+}
+
+void M5Buttons::saveDisplayState() {
+  DisplayState& s = _savedDisplayState;
+  s.textdatum   = M5DISPLAY->textdatum;
+  s.textfont    = M5DISPLAY->textfont;
+  s.textsize    = M5DISPLAY->textsize;
+  s.textcolor   = M5DISPLAY->textcolor;
+  s.textbgcolor = M5DISPLAY->textbgcolor;
+  s.cursor_x    = M5DISPLAY->cursor_x;
+  s.cursor_y    = M5DISPLAY->cursor_y;
+  s.padX        = M5DISPLAY->padX;
+  s.gfxFont     = M5DISPLAY->getGFXfont();
+}
+
+void M5Buttons::restoreDisplayState() {
+  DisplayState& s = _savedDisplayState;
+  M5DISPLAY->setTextDatum(s.textdatum);
+  M5DISPLAY->setTextPadding(s.padX);
+  M5DISPLAY->setTextSize(s.textsize);
+  M5DISPLAY->setTextColor(s.textcolor, s.textbgcolor);
+  M5DISPLAY->setCursor(s.cursor_x, s.cursor_y);
+  if (s.gfxFont) M5DISPLAY->setFreeFont(s.gfxFont);
+  else M5DISPLAY->setTextFont(s.textfont);
 }
 
 void M5Buttons::draw() {
@@ -451,12 +492,17 @@ void M5Buttons::update() {
       } else if (prev && !curr) {
         // Finger removed
         uint16_t duration = millis() - fi.startTime;
-        for (auto gesture : Gesture::instances) {
-          if (gesture->test(fi.startPoint, prev, duration)) {
-            BUTTONS->fireEvent(i, E_GESTURE, fi.startPoint, prev, duration,
-                               nullptr, gesture);
-            if (fi.button) fi.button->cancel();
-            break;
+        if (!pianoMode) {
+          for (auto gesture : Gesture::instances) {
+            if (gesture->test(fi.startPoint, prev, duration)) {
+              if (fi.button) {
+                fi.button->cancel();
+                fi.button->fingerUp(i);
+              }
+              fireEvent(i, E_GESTURE, fi.startPoint, prev, duration,
+                        nullptr, gesture);
+              return;
+            }
           }
         }
         if (fi.button) {
@@ -535,6 +581,24 @@ void M5Buttons::delHandlers(void (*fn)(Event&) /* = nullptr */,
     _eventHandlers.erase(_eventHandlers.begin() + i);
   }
 }
+
+void M5Buttons::pushState() {
+  OverallState newState;
+  newState.handlers = _eventHandlers;
+  newState.buttons  = Button::instances;
+  newState.gestures = Gesture::instances;
+  _stateStack.push_back(newState);
+}
+
+void M5Buttons::popState() {
+  if (_stateStack.empty()) return;
+  OverallState oldState = _stateStack.back();
+  _eventHandlers     = oldState.handlers;
+  Button::instances  = oldState.buttons;
+  Gesture::instances = oldState.gestures;
+  _stateStack.pop_back();
+}
+
 
 // Gesture class
 

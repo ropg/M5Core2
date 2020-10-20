@@ -104,10 +104,10 @@ bool M5Touch::read() {
     }
   }
 
-#ifdef TFT
-  p[0].rotate(TFT->rotation);
-  p[1].rotate(TFT->rotation);
-#endif /* TFT */
+#ifdef M5DISPLAY
+  p[0].rotate(M5DISPLAY->rotation);
+  p[1].rotate(M5DISPLAY->rotation);
+#endif /* M5DISPLAY */
 
   if (p[0] != point[0] || p[1] != point[1]) {
     changed = true;
@@ -168,3 +168,34 @@ bool HotZone::inHotZoneDoFun(Point& p) {
     return false;
   }
 }
+
+
+// Emulates the native (resistive) TFT_eSPI touch interface using M5.Touch
+
+uint8_t TFT_eSPI_Touch::getTouchRaw(uint16_t *x, uint16_t *y) {
+  return getTouch(x, y);
+}
+
+uint16_t TFT_eSPI_Touch::getTouchRawZ(void) {
+  return (TOUCH->ispressed()) ? 1000 : 0;
+}
+
+void TFT_eSPI_Touch::convertRawXY(uint16_t *x, uint16_t *y) { return; }
+
+uint8_t TFT_eSPI_Touch::getTouch(uint16_t *x, uint16_t *y,
+                                 uint16_t threshold /* = 600 */) {
+  TOUCH->read();
+  if (TOUCH->points) {
+    *x = TOUCH->point[0].x;
+    *y = TOUCH->point[0].y;
+    return true;
+  }
+  return false;
+}
+
+void TFT_eSPI_Touch::calibrateTouch(uint16_t *data, uint32_t color_fg,
+                                    uint32_t color_bg, uint8_t size) {
+  return;
+}
+
+void TFT_eSPI_Touch::setTouch(uint16_t *data) { return; }

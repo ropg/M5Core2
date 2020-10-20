@@ -242,11 +242,13 @@
   it.
 
   With "myButton.hide()" you can make a button temporarily invisible to the
-  touch sensor. You can specify an optional color value to draw over the
-  button if you want to make it visually disappear also. myButton.draw() makes
-  it visible to the touch sensor again, even if you have no colors defined, so
-  nothing shows on the screen. "MyButton.erase()" only paints over the button,
-  in a color you can specify (default black).
+  touch sensor and the draw() function. You can specify an optional color
+  value to draw over the button if you want to make it visually disappear
+  also. "myButton.show()" makes it visible to the touch sensor and draw()
+  function again, but doesn't cause a draw() by itself. (And if you have no
+  colors defined nothing shows on the screen no matter what.)
+  "MyButton.erase()" only paints over the button, in a color you can specify,
+  default black.
 
 
 == Visual Buttons (Labels) with Hardware Buttons ==
@@ -626,7 +628,8 @@
       Down (plus or minus 30 degrees) for at least 100 pixels within 500 ms
 
 
-    Gesture fromTop(Zone(0, 0, 360, 30), ANYWHERE, "from top", 100, DIR_DOWN, 30);
+    Gesture fromTop(Zone(0, 0, 360, 30), ANYWHERE,
+                         "from top", 100, DIR_DOWN, 30);
 
       The same but starting from within the top 30 pixels. (If you make that
       too narrow you may miss the swipe because the sensor 'sees' only once
@@ -682,6 +685,17 @@
     but if you set it to a valid screen area, the button will be drawn there.
     This is used internally to put the optional labels for the off-screen
     buttons on the Core2 on the screen just above their touch areas.
+
+  ## disp, dx and dy
+
+    M5Button can also draw into TFT_eSPI sprites. For that, you can specify a
+    pointer to the sprite in in M5.Buttons.disp and eventual offset to the
+    coordinates in M5.Buttons.dx and M5.Buttons.dy. Example: If you sprite
+    will get pushed at (0,80), you would supply dy as -80 to make sure
+    everything in the sprite is in its proper place. You can check the
+    keyboard example for an example of this to suppress flicker when drawing
+    lots of buttons. Setting M5.Buttons.disp to M5DISPLAY and dx and dy to 0 will
+    resume normal operation.
 
 
   ## Drawing is Non-Invasive
@@ -739,32 +753,33 @@ class Gesture;
 #define BUTTON_TEXTSIZE 1
 #define BUTTON_DATUM MC_DATUM
 
-#define TAP_TIME 150
-#define DBLTAP_TIME 300
-#define LONGPRESS_TIME 0
-#define REPEAT_DELAY 0
+#define TAP_TIME        150
+#define DBLTAP_TIME     300
+#define LONGPRESS_TIME  0
+#define REPEAT_DELAY    0
 #define REPEAT_INTERVAL 200
 
 #define GESTURE_MAXTIME 500
 #define GESTURE_MINDIST 75
 #define ANYWHERE Zone()
 
-#define NUM_EVENTS 11
-#define E_TOUCH 0x0001
-#define E_RELEASE 0x0002
-#define E_MOVE 0x0004
-#define E_GESTURE 0x0008
-#define E_TAP 0x0010
-#define E_DBLTAP 0x0020
-#define E_DRAGGED 0x0040
-#define E_PRESSED 0x0080
-#define E_PRESSING 0x0100
-#define E_LONGPRESSED 0x0200
-#define E_LONGPRESSING 0x0400
+#define NUM_EVENTS      11
+#define E_TOUCH         0x0001
+#define E_RELEASE       0x0002
+#define E_MOVE          0x0004
+#define E_GESTURE       0x0008
+#define E_TAP           0x0010
+#define E_DBLTAP        0x0020
+#define E_DRAGGED       0x0040
+#define E_PRESSED       0x0080
+#define E_PRESSING      0x0100
+#define E_LONGPRESSED   0x0200
+#define E_LONGPRESSING  0x0400
 
-#define E_ALL 0x0FFF
+#define E_ALL           0x0FFF
 
-#define NODRAW 0x0120  // Special color value: transparent
+// Special color value, meaning we don't draw anything
+#define NODRAW          0x0120
 
 struct ButtonColors {
   uint16_t bg;
@@ -801,9 +816,30 @@ class Event {
   Gesture* gesture;
 };
 
+struct EventHandler {
+  uint16_t eventMask;
+  Button* button;
+  Gesture* gesture;
+  void (*fn)(Event&);
+};
+
+struct OverallState {
+  std::vector<EventHandler> handlers;
+  std::vector<Button*> buttons;
+  std::vector<Gesture*> gestures;
+};
+
+struct DisplayState {
+  uint8_t textfont, textsize, textdatum;
+  uint32_t textcolor, textbgcolor;
+  int32_t cursor_x, cursor_y, padX;
+  GFXfont* gfxFont;
+};
+
 class Button : public Zone {
  public:
   static std::vector<Button*> instances;
+  Button();
   Button(int16_t x_, int16_t y_, int16_t w_, int16_t h_, bool rot1_ = false,
          const char* name_ = "", ButtonColors off_ = {NODRAW, NODRAW, NODRAW},
          ButtonColors on_ = {NODRAW, NODRAW, NODRAW},
@@ -838,6 +874,7 @@ class Button : public Zone {
   bool wasReleasefor(uint32_t ms);
   void addHandler(void (*fn)(Event&), uint16_t eventMask = E_ALL);
   void delHandlers(void (*fn)(Event&) = nullptr);
+  void setName(const char* name_);
   char* getName();
   uint32_t lastChange();
   Event event;
@@ -867,12 +904,13 @@ class Button : public Zone {
   void draw(ButtonColors bc);
   void draw();
   void hide(uint16_t color = NODRAW);
+  void show();
   void erase(uint16_t color = BLACK);
   void setLabel(const char* label_);
+  char* getLabel();
   void setFont(const GFXfont* freeFont_);
   void setFont(uint8_t textFont_ = 0);
   void setTextSize(uint8_t textSize_ = 0);
-  char* label();
   ButtonColors off, on;
   Zone drawZone;
   uint8_t datum, r;
@@ -920,13 +958,6 @@ class Gesture {
   char _name[16];
 };
 
-struct EventHandler {
-  uint16_t eventMask;
-  Button* button;
-  Gesture* gesture;
-  void (*fn)(Event&);
-};
-
 class M5Buttons {
  public:
   static M5Buttons* instance;
@@ -944,14 +975,23 @@ class M5Buttons {
   void addHandler(void (*fn)(Event&), uint16_t eventMask = E_ALL,
                   Button* button = nullptr, Gesture* gesture = nullptr);
   void delHandlers(void (*fn)(Event&), Button* button, Gesture* gesture);
+  void pushState();
+  void popState();
+  TFT_eSPI* display;
+  int16_t dx, dy;
   Event event;
+  bool pianoMode;
 
  protected:
+  void saveDisplayState();
+  void restoreDisplayState();
   std::vector<EventHandler> _eventHandlers;
+  std::vector<OverallState> _stateStack;
   uint8_t _textFont;
   const GFXfont* _freeFont;
   uint8_t _textSize;
   bool _leftovers;
+  DisplayState _savedDisplayState;
 
 #ifdef _M5TOUCH_H_
  protected:

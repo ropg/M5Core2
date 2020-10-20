@@ -4,8 +4,6 @@
   #include <Arduino.h>
   #include <FS.h>
   #include <SPI.h>
-
-  #include "utility/Config.h"  // This is where Core2 defines would be
   #include "utility/In_eSPI.h"
   #include "utility/Sprite.h"
 
@@ -16,13 +14,6 @@
     JPEG_DIV_8,
     JPEG_DIV_MAX
   } jpeg_div_t;
-
-  struct DisplayState {
-    uint8_t textfont, textsize, datum;
-    const GFXfont *gfxFont;
-    uint32_t textcolor, textbgcolor;
-    int32_t cursor_x, cursor_y, padX;
-  };
 
   class M5Display : public TFT_eSPI {
     public:
@@ -65,6 +56,8 @@
 
       #define setFont setFreeFont
 
+      GFXfont* getGFXfont();
+
       void qrcode(const char *string, uint16_t x = 50, uint16_t y = 10, uint8_t width = 220, uint8_t version = 6);
       void qrcode(const String &string, uint16_t x = 50, uint16_t y = 10, uint8_t width = 220, uint8_t version = 6);
 
@@ -102,34 +95,6 @@
                     uint16_t offX = 0, uint16_t offY = 0,
                     double scale = 1.0, uint8_t alphaThreshold = 127);
 
-    // Saves and restores font properties, datum, cursor and colors so
-    // code can be non-invasive. Just make sure that every push is also
-    // popped when you're done to prevent stack from growing.
-    //
-    // (User code can never do this completely because the gfxFont
-    // class variable of TFT_eSPI is protected.)
-    #define M5DISPLAY_HAS_PUSH_POP
-     public:
-      void pushState();
-      void popState();
 
-     private:
-      std::vector<DisplayState> _displayStateStack;
-
-    #ifdef M5Stack_M5Core2
-
-      #ifdef TFT_eSPI_TOUCH_EMULATION
-        // Emulates the TFT_eSPI touch interface using M5.Touch
-       public:
-        uint8_t getTouchRaw(uint16_t *x, uint16_t *y);
-        uint16_t getTouchRawZ(void);
-        void convertRawXY(uint16_t *x, uint16_t *y);
-        uint8_t getTouch(uint16_t *x, uint16_t *y, uint16_t threshold = 600);
-        void calibrateTouch(uint16_t *data, uint32_t color_fg, uint32_t color_bg,
-                            uint8_t size);
-        void setTouch(uint16_t *data);
-      #endif /* TFT_eSPI_TOUCH_EMULATION */
-
-    #endif /* M5Stack_M5Core2 */
-};
-#endif /* _M5DISPLAY_H_ */
+  };
+#endif

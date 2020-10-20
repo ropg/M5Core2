@@ -44,15 +44,15 @@ uint16_t Point::distanceTo(const Point& p) {
 uint16_t Point::directionTo(const Point& p, bool rot1 /* = false */) {
   // 57.29578 =~ 180/pi, see https://stackoverflow.com/a/62486304
   uint16_t a = (uint16_t)(450.5 + (atan2(p.y - y, p.x - x) * 57.29578));
-#ifdef TFT
+#ifdef M5DISPLAY
   if (rot1) {
-    if (TFT->rotation < 4) {
-      a = (((TFT->rotation + 3) % 4) * 90) + a;
+    if (M5DISPLAY->rotation < 4) {
+      a = (((M5DISPLAY->rotation + 3) % 4) * 90) + a;
     } else {
-      a = (((TFT->rotation + 1) % 4) * 90) - a;
+      a = (((M5DISPLAY->rotation + 1) % 4) * 90) - a;
     }
   }
-#endif /* TFT */
+#endif /* M5DISPLAY */
   a = (360 + a) % 360;
   return a;
 }
@@ -131,13 +131,13 @@ bool Zone::contains(const Point& p) { return contains(p.x, p.y); }
 
 bool Zone::contains(int16_t x_, int16_t y_) {
 
-#ifdef TFT
-  if (rot1 && TFT->rotation != 1) {
+#ifdef M5DISPLAY
+  if (rot1 && M5DISPLAY->rotation != 1) {
     Zone t = *this;
-    t.rotate(TFT->rotation);
+    t.rotate(M5DISPLAY->rotation);
     return (y_ >= t.y && y_ <= t.y + t.h && x_ >= t.x && x_ <= t.x + t.w);
   }
-#endif /* TFT */
+#endif /* M5DISPLAY */
 
   return (y_ >= y && y_ <= y + h && x_ >= x && x_ <= x + w);
 }
