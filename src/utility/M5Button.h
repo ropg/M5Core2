@@ -977,6 +977,9 @@ class TFT_eSPI_Button : public Button {
   bool isPressed();
   bool justPressed();
   bool justReleased();
+ private:
+  bool  currstate, laststate;
+
 };
 
 #endif /* _M5BUTTON_H_ */
