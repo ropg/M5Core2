@@ -345,24 +345,24 @@ void Button::setTextSize(uint8_t textSize_ /* = 0 */) { _textSize = textSize_; }
         case TL_DATUM:
         case ML_DATUM:
         case BL_DATUM:
-          tx = z.x + margin;
+          tx = z.x + b.dx + margin;
           break;
         case TR_DATUM:
         case MR_DATUM:
         case BR_DATUM:
-          tx = z.x + z.w - margin;
+          tx = z.x + z.w + b.dx - margin;
           break;
       }
       switch (b.datum) {
         case TL_DATUM:
         case TC_DATUM:
         case TR_DATUM:
-          ty = z.y + margin;
+          ty = z.y + b.dy + margin;
           break;
         case BL_DATUM:
         case BC_DATUM:
         case BR_DATUM:
-          ty = z.y + z.h - margin;
+          ty = z.y + z.h + b.dy - margin;
           break;
       }
     }
@@ -391,7 +391,7 @@ void Button::setTextSize(uint8_t textSize_ /* = 0 */) { _textSize = textSize_; }
     }
     TFT->setTextDatum(b.datum);
     TFT->setTextPadding(0);
-    TFT->drawString(b._label, tx + b.dx, ty + b.dy);
+    TFT->drawString(b._label, tx, ty);
     // Set state back
     if (!b._compat) {
       TFT->popState();
@@ -706,17 +706,15 @@ void TFT_eSPI_Button::drawButton(bool inverted /* = false */,
   if (long_name != "") strncpy(_label, oldLabel, 50);
 }
 
-bool TFT_eSPI_Button::contains(int16_t x, int16_t y) {
-  return Button::contains(x, y);
+bool TFT_eSPI_Button::contains(int16_t _x, int16_t _y) {
+  return ((_x >= x) && (_x < (x + w)) &&
+          (_y >= y) && (_y < (y + h)));
 }
 
 void TFT_eSPI_Button::press(bool p) {
-  if (p)
-    fingerDown();
-  else
-    fingerUp();
+  laststate = currstate;
+  currstate = p;
 }
 
-bool TFT_eSPI_Button::justPressed() { return wasPressed(); }
-
-bool TFT_eSPI_Button::justReleased() { return wasReleased(); }
+bool TFT_eSPI_Button::justPressed()  { return (currstate && !laststate); }
+bool TFT_eSPI_Button::justReleased() { return (!currstate && laststate); }
